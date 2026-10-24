@@ -1,0 +1,17 @@
+'use strict';
+const feedbackDecisions=['待判断','接受','部分接受','暂缓','不采纳'];
+const feedbackKinds=['结构','论证','史料','文字','其他'];
+function normalizeRevision(out){
+ for(const f of out.feedback){if(f.decision&&!feedbackDecisions.includes(f.decision))throw Error('意见处理决定无效');if(f.feedbackKind&&!feedbackKinds.includes(f.feedbackKind))throw Error('意见分类无效');if(f.feedbackStatus&&!['待处理','已回应'].includes(f.feedbackStatus))throw Error('意见状态无效');if(f.reviewedAt&&!fullDayValid(f.reviewedAt))throw Error('讨论日期无效');for(const k of ['argumentID','versionID'])if(f[k]!==undefined&&typeof f[k]!=='string')throw Error('意见定位无效')}
+ for(const t of out.tasks){for(const k of ['feedbackID','completionNote'])if(t[k]!==undefined&&typeof t[k]!=='string')throw Error('修订任务格式无效')}
+ for(const p of out.projects)if(p.revisionTaskOrder!==undefined&&(!Array.isArray(p.revisionTaskOrder)||p.revisionTaskOrder.some(id=>typeof id!=='string')||new Set(p.revisionTaskOrder).size!==p.revisionTaskOrder.length))throw Error('修订顺序无效');
+ const settings=out.settings,raw=revisionRawSettings||{};
+ for(const [key,allowed,fallback]of [['backupIntervalMins',[15,30,60,120],60],['backupRetentionCount',[30,60,120],60]]){if(raw[key]!==undefined&&!allowed.includes(raw[key]))throw Error('自动备份设置无效');settings[key]=raw[key]??fallback}return out;
+}
+// The core normalizer rebuilds settings; capture only the explicit backup preferences during loading.
+let revisionRawSettings=null;
+function feedbackTasks(id){return data.tasks.filter(t=>t.feedbackID===id)}
+function revisionTasks(pid=activeProject()){const p=find('projects',pid),order=p?.revisionTaskOrder||[];return projectRecords('tasks',pid).filter(t=>t.feedbackID).slice().sort((a,b)=>{const ai=order.indexOf(a.id),bi=order.indexOf(b.id);return (ai<0?1e9:ai)-(bi<0?1e9:bi)})}
+function createRevisionTask(id){if(!writerFlush())return false;const f=find('feedback',id);if(!f||!['接受','部分接受'].includes(f.decision))throw Error('请先记录接受或部分接受的意见');const prior=feedbackTasks(id)[0];if(prior)return prior.id;let taskID='';if(!projectMutation(()=>{taskID=crypto.randomUUID();data.tasks.unshift({id:taskID,title:'修订：'+f.title,body:f.body+'\n\n作者判断：'+(f.counter||'')+'\n采纳理由：'+(f.reason||''),progress:'待办',workKind:'写作',chapter:f.chapter||'',sourceIds:f.sourceIds||[],projectIDs:[...(f.projectIDs||[])],feedbackID:f.id,origin:'feedback:'+f.id,completionNote:'',updated:new Date().toISOString()})}))return false;return taskID}
+function moveRevisionTask(pid,id,delta){return projectMutation(()=>{const rows=revisionTasks(pid),i=rows.findIndex(t=>t.id===id);if(i<0||!rows[i+delta])throw Error('没有可调整的位置');const ids=rows.map(t=>t.id);[ids[i],ids[i+delta]]=[ids[i+delta],ids[i]];find('projects',pid).revisionTaskOrder=ids})}
+function feedbackResponseMarkdown(pid,{includeOriginal=true}={}){return '# 意见回应表\n\n'+projectRecords('feedback',pid).map(f=>'## '+f.title+'\n\n意见人：'+(f.reviewer||'未填写')+'\n讨论日期：'+(f.reviewedAt||'未填写')+'\n对应稿次：'+(f.roundLabel||'未填写')+'\n对应章节：'+(f.chapter?label('chapters',f.chapter):'未定位')+(f.versionID?'\n章节版本：'+(find('chapters',f.chapter)?.versions?.find(v=>v.id===f.versionID)?.name||'关联版本已缺失'):'')+(includeOriginal?'\n\n意见原话：\n'+(f.body||'未录入'):'')+'\n\n处理决定：'+(f.decision||'待判断')+'\n理由：'+(f.reason||'未填写')+'\n\n回应状态：'+(f.feedbackStatus||'待处理')+'\n修改说明：'+(f.resolution||'尚未填写')+'\n\n关联修改任务：\n'+(feedbackTasks(f.id).map(t=>'- '+t.title+' · '+t.progress+'\n  修改说明：'+(t.completionNote||'尚未填写')).join('\n')||'尚无任务')).join('\n\n')}
