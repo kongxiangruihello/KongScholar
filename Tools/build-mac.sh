@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 export CLANG_MODULE_CACHE_PATH="$ROOT/.build/ModuleCache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$ROOT/.build/ModuleCache"
-VERSION="2.2.0"
+VERSION="2.3.0"
 OUTPUT="$ROOT/../outputs/KongScholar"
 mkdir -p "$OUTPUT"
 FINAL_DMG="$OUTPUT/KongScholar-$VERSION-universal.dmg"
@@ -35,7 +35,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>CFBundleIdentifier</key><string>com.kongxiangrui.KongScholar</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>$VERSION</string>
-<key>CFBundleVersion</key><string>16</string>
+<key>CFBundleVersion</key><string>17</string>
 <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>KongFolio import</string><key>CFBundleURLSchemes</key><array><string>kongscholar</string></array></dict></array>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundleDevelopmentRegion</key><string>zh-Hans</string>

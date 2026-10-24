@@ -41,7 +41,7 @@ public final class ScholarStore {
             throw ScholarStoreError.invalidData
         }
         let required = ["questions", "sources", "drafts", "lessons", "notes"]
-        let optional = ["arguments", "chapters", "comparisons", "events", "references", "responses", "tasks", "concepts", "textpairs", "seminars", "projects", "milestones", "inbox", "reviews", "feedback"]
+        let optional = ["arguments", "chapters", "comparisons", "events", "references", "responses", "tasks", "concepts", "textpairs", "seminars", "projects", "milestones", "inbox", "reviews", "feedback", "readings", "authorities", "provenances", "freezes", "deliveries"]
         for key in required + optional {
             if root[key] == nil && optional.contains(key) { continue }
             guard let items = root[key] as? [[String: Any]] else { throw ScholarStoreError.invalidData }

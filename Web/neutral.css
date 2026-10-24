@@ -19,3 +19,6 @@ body{background:var(--paper);color:var(--ink)}aside{background:var(--sidebar);pa
 
 /* 2.2 review and revision workflow. */
 #deliverySummary{min-height:130px}.proof-row .toolbar{flex-wrap:wrap;gap:7px}details>pre{padding:12px;background:var(--soft);border-radius:8px;max-height:55vh;overflow:auto}
+
+/* 2.3 focused writing and scholarly records. */
+.focus-tools{display:flex;flex-wrap:wrap;gap:8px;position:sticky;top:0;background:var(--surface);padding:10px 0;z-index:2}.writing-focus aside,.writing-focus header,.writing-focus footer,.writing-focus #backupNotice,.writing-focus .studio-tabs,.writing-focus .hero,.writing-focus .writer-outline,.writing-focus .resume-card{display:none}.writing-focus main{margin-left:0;max-width:1400px;margin-right:auto;margin-left:auto;padding:10px 28px}.writing-focus .writer-layout{grid-template-columns:minmax(360px,1fr) 280px}.writing-focus #chapterBody{min-height:74vh}.writing-focus .writer-main{border:0}.writing-focus .writer-evidence{max-height:94vh;overflow:auto;position:sticky;top:12px}.compare-grid>pre{min-width:0}.proof-row details label.field{margin:7px 0}#deliveryDiff details{border-top:1px solid var(--line);padding:12px 0}
