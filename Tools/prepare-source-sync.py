@@ -6,7 +6,7 @@ root=Path(__file__).resolve().parents[1]
 files=[root/'Package.swift',root/'README.md',root/'.gitignore']
 for folder in ['Sources','Tests','Tools','Web']:
     files.extend(p for p in (root/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
-for name in ['使用说明.html','folio-protocol.md','release-2.2.md','release-2.3.md','release-2.4.md','release-2.5.md','release-2.6.md','release-2.7.md','release-2.8.md','release-2.9.md','release-3.0.md','release-3.1.md','release-3.2.md','release-3.3.md','release-3.4.md','release-3.5.md']:
+for name in ['使用说明.html','folio-protocol.md','release-2.2.md','release-2.3.md','release-2.4.md','release-2.5.md','release-2.6.md','release-2.7.md','release-2.8.md','release-2.9.md','release-3.0.md','release-3.1.md','release-3.2.md','release-3.3.md','release-3.4.md','release-3.5.md','release-3.6.md']:
     p=root/'Documentation'/name
     if p.exists():files.append(p)
 entries=[]
