@@ -6,7 +6,7 @@ root=Path(__file__).resolve().parents[1]
 files=[root/'Package.swift',root/'README.md',root/'.gitignore']
 for folder in ['Sources','Tests','Tools','Web']:
     files.extend(p for p in (root/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
-for name in ['使用说明.html','folio-protocol.md','release-2.2.md','release-2.3.md']:
+for name in ['使用说明.html','folio-protocol.md','release-2.2.md','release-2.3.md','release-2.4.md','release-2.5.md','release-2.6.md','release-2.7.md','release-2.8.md','release-2.9.md','release-3.0.md','release-3.1.md','release-3.2.md']:
     p=root/'Documentation'/name
     if p.exists():files.append(p)
 entries=[]
@@ -19,5 +19,5 @@ for p in sorted(set(files)):
     text=p.read_text(encoding='utf-8')
     if re.search(r'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{40,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',text):
         raise SystemExit('疑似凭证，已停止生成源码清单：'+path)
-    entries.append({'path':path,'mode':'100755' if path in ['Tools/build-mac.sh','Tools/prepare-source-sync.py'] else '100644','type':'blob','content':text})
+    entries.append({'path':path,'mode':'100755' if path in ['Tools/build-mac.sh','Tools/prepare-source-sync.py','Tools/publish-source.py','Tools/notarize-mac.sh'] else '100644','type':'blob','content':text})
 print(json.dumps(entries,ensure_ascii=False))

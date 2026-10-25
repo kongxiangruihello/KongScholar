@@ -6,9 +6,15 @@ import Darwin
 
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, NSWindowDelegate {
-    private var window: NSWindow!
-    private var webView: WKWebView!
-    private var store: ScholarStore!
+    var window: NSWindow!
+    var webView: WKWebView!
+    var pdfDock28: PDFDock28?
+    var proofWindow30: NSWindow?
+    var chapterWindows31=[String:ChapterWindow31]()
+    var sourceWindows31=[NSWindow]()
+    var store: ScholarStore!
+    var stagedWorkingDrafts27:Data?
+    var stagedWorkingToken27=""
     private var resourceDirectory: URL!
     private var lockFD: Int32 = -1
     private var pendingFolioFiles: [URL] = []
@@ -47,8 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             }
             resourceDirectory = root
             backupError = UserDefaults.standard.string(forKey: "KongScholar.BackupError") ?? ""
-            let initial = try store.read()
+            let initial = try store.readForInterface()
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.5.0"
+            store.releaseVersion=version
             do {
                 if UserDefaults.standard.string(forKey: "KongScholar.BackupVersion") != version {
                     try store.snapshotIfNeeded(force: true, label: "before-" + version)
@@ -59,10 +66,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 guard let self else { return }
                 do { try self.store.snapshotIfNeeded(); self.backupError = "" }
                 catch { self.backupError = error.localizedDescription }
+                self.checkExternalBackup()
             }
+            var startupReport=StartupHealth.inspect(store,resources:root,initialText:initial)
+            startupReport["release"]=version
+            let startupJSON=jsonString(startupReport)
             let config = WKWebViewConfiguration()
             config.websiteDataStore = .nonPersistent()
-            let bootstrap = "window.KongScholarDesktop = Object.freeze({initialData: \(ScholarStore.javascriptLiteral(initial)), dataPath: \(ScholarStore.javascriptLiteral(store.dataURL.path))});"
+            let bootstrap = "window.KongScholarDesktop = Object.freeze({initialData: \(ScholarStore.javascriptLiteral(initial)), dataPath: \(ScholarStore.javascriptLiteral(store.dataURL.path)), startupReportJSON: \(ScholarStore.javascriptLiteral(startupJSON))});"
             config.userContentController.addUserScript(WKUserScript(source: bootstrap, injectionTime: .atDocumentStart, forMainFrameOnly: true))
             webView = WKWebView(frame: .zero, configuration: config)
             webView.navigationDelegate = self
@@ -95,12 +106,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     private func checkAutomaticBackup(force: Bool = false) {
         do { try store.snapshotIfNeeded(force: force); backupError = "" }
         catch { backupError = error.localizedDescription }
+        checkExternalBackup(force: force)
     }
 
     private func flushWriter(_ completion: @escaping (Bool) -> Void) {
         guard pageReady, let webView else { completion(true); return }
         webView.evaluateJavaScript("typeof writerFlush === 'function' ? writerFlush() : true") { result, error in
-            completion(error == nil && (result as? Bool) == true)
+            if error == nil && (result as? Bool) == true {self.flushDetached31(completion)}else{completion(false)}
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -213,8 +225,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                  defaultText: String?, initiatedByFrame frame: WKFrameInfo,
                  completionHandler: @escaping (String?) -> Void) {
         guard isTrusted(frame) else { completionHandler(nil); return }
+        if advancedPrompt(prompt, text: defaultText, completion: completionHandler) { return }
         if prompt == "KONGSCHOLAR_WRITE" {
-            do { try store.write(defaultText ?? ""); checkAutomaticBackup(); completionHandler("ok") }
+            do { try store.write(defaultText ?? ""); checkExternalBackup(); completionHandler("ok") }
             catch { completionHandler("error:" + error.localizedDescription) }
         } else if prompt == "KONGSCHOLAR_HEALTH" {
             do {
@@ -416,7 +429,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         return ["name":url.lastPathComponent,"text":text,"size":text.utf8.count]
     }
-    private func jsonString(_ value: Any) -> String? {
+    func jsonString(_ value: Any) -> String? {
         guard let bytes = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]) else { return nil }
         return String(data: bytes, encoding: .utf8)?.replacingOccurrences(of: "\u{2028}", with: "\\u2028").replacingOccurrences(of: "\u{2029}", with: "\\u2029")
     }

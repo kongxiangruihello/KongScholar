@@ -18,3 +18,14 @@ snapshot-*.json
 *.app/
 .env
 .env.*
+archives/
+KongScholar-backups/
+damaged-*.json
+KongScholar-恢复演练-*/
+editing-drafts/
+upgrades/
+release-state/
+source-queue.json
+export-outbox/
+export-previews/
+window-drafts31/

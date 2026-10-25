@@ -4,8 +4,8 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 export CLANG_MODULE_CACHE_PATH="$ROOT/.build/ModuleCache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$ROOT/.build/ModuleCache"
-VERSION="2.3.0"
-OUTPUT="$ROOT/../outputs/KongScholar"
+VERSION="3.2.0"
+OUTPUT="${KONGSCHOLAR_BUILD_OUTPUT:-$ROOT/../outputs/KongScholar}"
 mkdir -p "$OUTPUT"
 FINAL_DMG="$OUTPUT/KongScholar-$VERSION-universal.dmg"
 if [ -e "$FINAL_DMG" ]; then
@@ -25,6 +25,20 @@ done
 lipo -create "$WORK/KongScholar-arm64" "$WORK/KongScholar-x86_64" -output "$APP/Contents/MacOS/KongScholar"
 cp -R Web "$APP/Contents/Resources/Web"
 cp Documentation/使用说明.html "$APP/Contents/Resources/使用说明.html"
+/usr/bin/python3 Tools/publish-source.py --output "$APP/Contents/Resources/release-status.json"
+if [ -n "${KONGSCHOLAR_SOURCE_RECEIPT:-}" ]; then
+    /usr/bin/python3 - "$APP/Contents/Resources/release-status.json" "$KONGSCHOLAR_SOURCE_RECEIPT" <<'PYRECEIPT'
+import json,sys
+from pathlib import Path
+a=Path(sys.argv[1]);base=json.loads(a.read_text());receipt=json.loads(Path(sys.argv[2]).read_text())
+for key in ['format','version','release','repository','branch','manifestSHA256','files']:
+    if receipt.get(key)!=base.get(key):raise SystemExit('源码回执与当前构建不一致，已停止')
+if receipt.get('state') not in ['pending','blocked','verified']:raise SystemExit('回执状态无效')
+if receipt['state']=='verified' and (len(receipt.get('commit',''))!=40 or len(receipt.get('tree',''))!=40):raise SystemExit('回执缺少核验提交')
+a.write_text(json.dumps(receipt,ensure_ascii=False,sort_keys=True))
+PYRECEIPT
+fi
+rm "$APP/Contents/Resources/source-queue.json"
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -35,7 +49,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>CFBundleIdentifier</key><string>com.kongxiangrui.KongScholar</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>$VERSION</string>
-<key>CFBundleVersion</key><string>17</string>
+<key>CFBundleVersion</key><string>29</string>
 <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>KongFolio import</string><key>CFBundleURLSchemes</key><array><string>kongscholar</string></array></dict></array>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundleDevelopmentRegion</key><string>zh-Hans</string>
