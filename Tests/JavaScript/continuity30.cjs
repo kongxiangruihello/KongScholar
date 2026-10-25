@@ -1,9 +1,9 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),setup=require('./runtime30.js');
 const r=setup();
 for(const p of ['home','review30','anchors30','exportProof30','outbox30','writer','questionMatrix29','revision29','drafts26'])assert.doesNotThrow(()=>r.run(String.raw`go('${p}')`),p);
-assert(r.get('nav').innerHTML.includes('今日工作'));assert(r.get('nav').innerHTML.includes('教学与指导'));
+assert(r.get('nav').innerHTML.includes('今日工作'));assert(r.get('nav').innerHTML.includes('讲座与学术报告'));
 r.run(String.raw`pid='project-heyiweishi';data.meta.activeProjectID=pid;data.projects.push({id:'paper-test',title:'TEST ONLY Paper',projectKind:'论文',deadline:'2026-11-01'});data.chapters=[{id:'chapter-a',title:'TEST ONLY Same title',projectIDs:[pid],writing:{body:'第一段：关于士人的研究问题。\n\n第二段：材料与解释之间的关系。\n\n第三段：原有结论。',citations:[]}},{id:'chapter-b',title:'TEST ONLY Same title',projectIDs:['paper-test'],writing:{body:'TEST ONLY paper manuscript',citations:[]}}];data.bookmarks=[{id:'b',title:'TEST ONLY Bookmark',chapter:'chapter-a',anchorText:'第二段：材料与解释之间的关系。',projectIDs:[pid]}];save();initialID=data.bookmarks[0].anchor30.paragraphID;initialParagraphs=scholarlyClone(data.chapters[0].paragraphs30)`);
-assert.equal(r.run('data.meta.minimumReader'),34);assert(r.run('initialID.length>0'));
+assert.equal(r.run('data.meta.minimumReader'),35);assert(r.run('initialID.length>0'));
 r.run(String.raw`data.chapters[0].writing.body='第三段：原有结论。\n\n第一段：关于士人的研究问题。\n\n第二段：材料与解释之间的关系。';save()`);
 assert.equal(r.run('data.chapters[0].paragraphs30[2].id'),r.run('initialID'));assert.equal(r.run('bookmarkLocation(data.bookmarks[0]).offset'),r.run('data.chapters[0].writing.body.indexOf(data.bookmarks[0].anchorText)'));
 r.run(String.raw`data.chapters[0].writing.body='第三段：原有结论。\n\n第一段：关于士人的研究问题。\n\n第二段：材料与解释之间的关系，需要限定适用范围。';save();row=anchorRows30().find(x=>x.record.id==='b');basis=repairBasis30(row);candidate=repairCandidates30(row)[0]`);
@@ -26,12 +26,12 @@ r.run("payload=wordPayload([data.chapters[1]],'TEST ONLY Paper export');window.p
 // Failed formal-history save survives a full page restart; retry is idempotent and uses the export-time feedback snapshot.
 r.run('save()');const good=r.disk();r.fail(true);r.run("window.prompt('KONGSCHOLAR_WORD_EXPORT',JSON.stringify(wordPayload([data.chapters[0]],'TEST ONLY Failed history')))");assert.equal(r.receipts.size,1);assert.equal(r.run('data.deliveries.length'),1);
 const retry=setup(good,r.receipts);retry.run("data.feedback[0].feedbackStatus='已回应';save();outbox30View();captureExport29(outboxRows30[0].entry)");assert.equal(retry.run('data.deliveries.length'),2);assert.equal(retry.receipts.size,0);assert.equal(retry.run('data.deliveries[0].title'),'TEST ONLY Failed history');
-const again=setup(retry.disk());assert.equal(again.run('loadError'),false);assert.equal(again.run('data.meta.minimumReader'),34);assert.equal(again.run('data.bookmarks[0].anchorRepairs30.length'),2);
+const again=setup(retry.disk());assert.equal(again.run('loadError'),false);assert.equal(again.run('data.meta.minimumReader'),35);assert.equal(again.run('data.bookmarks[0].anchorRepairs30.length'),2);
 // Saved history + failed acknowledgement never creates a second delivery after restart.
 again.failAck(true);again.run("window.prompt('KONGSCHOLAR_WORD_EXPORT',JSON.stringify(wordPayload([data.chapters[1]],'TEST ONLY Ack retry')))");assert.equal(again.receipts.size,1);const ack=setup(again.disk(),again.receipts);ack.run('outbox30View();captureExport29(outboxRows30[0].entry)');assert.equal(ack.run('data.deliveries.length'),3);assert.equal(ack.receipts.size,0);
 const before=ack.run('data.deliveries.length');ack.native(null);ack.run("window.prompt('KONGSCHOLAR_WORD_EXPORT',JSON.stringify(wordPayload([data.chapters[0]],'TEST ONLY Cancelled')))");assert.equal(ack.run('data.deliveries.length'),before);assert.equal(ack.receipts.size,0);
 // First draft write also protects the new version; corrupt paragraph metadata is rejected at cold load.
-const draft=setup();draft.run("data.meta.minimumReader=29;openForm('notes',null,{title:'TEST DRAFT'});$('#form').rows=[['title','TEST DRAFT'],['body','TEST UNSUBMITTED']];formJournalDirty26=true;captureFormDraft26()");assert.equal(draft.run('data.meta.minimumReader'),34);assert.equal(draft.journal.size,1);
+const draft=setup();draft.run("data.meta.minimumReader=29;openForm('notes',null,{title:'TEST DRAFT'});$('#form').rows=[['title','TEST DRAFT'],['body','TEST UNSUBMITTED']];formJournalDirty26=true;captureFormDraft26()");assert.equal(draft.run('data.meta.minimumReader'),35);assert.equal(draft.journal.size,1);
 const damaged=JSON.parse(ack.disk());damaged.chapters[0].paragraphs30=[{id:'bad',text:12,offset:0}];assert.equal(setup(JSON.stringify(damaged)).run('loadError'),true);
 if(process.env.KONGSCHOLAR_QA_OUTPUT){fs.mkdirSync(process.env.KONGSCHOLAR_QA_OUTPUT,{recursive:true});fs.writeFileSync(process.env.KONGSCHOLAR_QA_OUTPUT+'/synthetic-data.json',ack.disk())}
 console.log('Passed 3.0: actual script order/cold startup, navigation, stable moved paragraphs, explicit repair/stale/duplicate/failure guards, cross-project queue, exact chapter identity, durable export replay/dedup/cancel, draft upgrade protection and malformed data protection.');

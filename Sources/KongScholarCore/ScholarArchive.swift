@@ -49,7 +49,7 @@ public enum ScholarArchive {
         // Older app versions must enter protected recovery mode instead of dropping unknown collections.
         root["profile"] = ["_archiveIndexOnly": true]
         let reader = (root["meta"] as? [String: Any])?["minimumReader"] as? Int ?? 0
-        let storageVersion = reader >= 34 ? 10 : reader >= 32 ? 9 : reader >= 31 ? 8 : reader >= 30 ? 7 : reader >= 29 ? 6 : reader >= 28 ? 5 : reader >= 27 ? 4 : reader >= 26 ? 3 : reader == 25 ? 2 : 1
+        let storageVersion = reader >= 35 ? 11 : reader >= 34 ? 10 : reader >= 32 ? 9 : reader >= 31 ? 8 : reader >= 30 ? 7 : reader >= 29 ? 6 : reader >= 28 ? 5 : reader >= 27 ? 4 : reader >= 26 ? 3 : reader == 25 ? 2 : 1
         var storage: [String: Any] = ["version": storageVersion, "pointers": pointers, "profile": profile]
         root["_archiveStorage"] = storage
         storage["indexSHA256"] = digest(try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys]))
@@ -61,7 +61,7 @@ public enum ScholarArchive {
     public static func decode(_ bytes: Data, directory: URL) throws -> Data {
         guard var root = try JSONSerialization.jsonObject(with: bytes) as? [String: Any] else { throw ScholarStoreError.invalidData }
         guard let storage = root.removeValue(forKey: "_archiveStorage") else { return bytes }
-        guard let metadata = storage as? [String: Any], [1,2,3,4,5,6,7,8,9,10].contains(metadata["version"] as? Int ?? 0), let pointers = metadata["pointers"] as? [[String: Any]], pointers.count <= 100_000 else { throw ScholarStoreError.invalidData }
+        guard let metadata = storage as? [String: Any], [1,2,3,4,5,6,7,8,9,10,11].contains(metadata["version"] as? Int ?? 0), let pointers = metadata["pointers"] as? [[String: Any]], pointers.count <= 100_000 else { throw ScholarStoreError.invalidData }
         guard let expected = metadata["indexSHA256"] as? String else { throw ScholarStoreError.invalidData }
         var unsigned = metadata, check = root
         unsigned.removeValue(forKey: "indexSHA256"); check["_archiveStorage"] = unsigned
