@@ -1,4 +1,28 @@
-<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><title>KongScholar 使用说明</title><style>body{max-width:820px;margin:65px auto;padding:0 28px;font:16px/1.9 -apple-system,sans-serif;color:#202123;background:#ffffff}h1{font-family:Georgia,serif}code{background:#e8ece3;padding:3px 7px;overflow-wrap:anywhere}h2{margin-top:36px}</style><h1>KongScholar</h1><p>3.2.0 · 私人学术工作台 · macOS 13 或更新版本 · Apple 芯片 / Intel 通用版</p><h2>KongScholar 3.2</h2><pre style="white-space:pre-wrap;font:inherit"># KongScholar 3.2.0
+<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><title>KongScholar 使用说明</title><style>body{max-width:820px;margin:65px auto;padding:0 28px;font:16px/1.9 -apple-system,sans-serif;color:#202123;background:#ffffff}h1{font-family:Georgia,serif}code{background:#e8ece3;padding:3px 7px;overflow-wrap:anywhere}h2{margin-top:36px}</style><h1>KongScholar</h1><p>3.3.0 · 个人学术工作台 · macOS 13 或更新版本 · Apple 芯片 / Intel 通用版</p><h2>KongScholar 3.3</h2><pre style="white-space:pre-wrap;font:inherit"># KongScholar 3.3.0
+
+2026-10-25 · 第30次构建 · macOS13+ · Apple芯片 / Intel通用版
+
+本版完成用户追加的四项界面与备份改动；此前24项建议仍累计完成18项，尚余第18、19、20、21、23、24项。
+
+1. **个人学术工作台**：左侧KongScholar下方统一显示“个人学术工作台”，下一行明确当前项目。窗口页面标题及关于说明同步更新。
+2. **更紧凑的左侧菜单**：五个主要入口加入灰色线条图标，当前区域的常用工具直接列在左侧，减少原来右侧横排工具占用。菜单采用较小行距、当前页底色和区域分隔，工具较多时只滚动菜单，左下备份区保持可见。“今日工作”增加学术项目入口，个人工作区及全部工具搜索继续保留。配色继续使用中性灰白，并按系统深浅外观切换。
+3. **明显可用的自动备份**：在原有定时快照上增加左下常驻状态、最近快照时间、立即备份、设置与恢复。原生状态接口只读取文件元信息，避免为显示状态反复组装整个资料库；约每分钟刷新。新资料库、未设间隔的旧资料默认15分钟；已有15/30/60/120分钟选择原样保留。首次保存后也会检查并建立快照，运行期间约每分钟检查是否到期；退出前继续检查。无变化内容跳过重复自动快照，手动和升级前快照保留。立即备份先保存正文和正式资料，再建立并校验快照；保存失败则停止备份请求，备份异常在左侧显示。自动快照仍可选择保留30/60/120份，不在退出APP或关机后后台运行。
+4. **当前阶段下拉选择**：编辑学术项目时，可选择待规划、选题构思、资料搜集、史料研读、提纲设计、初稿写作、修改完善、送审投稿、出版准备、备课准备、教学实施、指导进行、审稿进行、报告准备、已完成、暂缓。以前手填的其他阶段自动作为当前选项保留，不因打开编辑而被替换；切换阶段不自动修改正文、项目类型或任务状态。
+
+## 本机保存与备份范围
+
+沿用最低读取版本32 / 拆分存储版本9，不新增研究资料格式；本版首次写入前继续建立并核验3.3专用升级前完整备份。更新前请主动导出完整备份。普通快照保存正式资料，已提交到章节的正文进入快照；独立窗口未提交草稿、独立导出待补记回执及未采用的OCR候选仍有各自范围。迁移前先保存草稿、补记回执，必要时保留整个本机资料目录。
+
+研究、稿件、学生资料、PDF、图像、附件和备份只在本机。GitHub仅同步APP源码、合成测试与版本说明。未改动KongFolio，联动目标仍是文稿目录中的0.22系列。
+
+## 验证
+
+89项Swift测试、26组JavaScript测试通过。新增检查确认默认15分钟的到期边界、既有60分钟选择保留、旧快照独立可读、旧阶段名称安全保留、状态异常提示及保存失败时不发起备份。
+
+Mac隔离合成库实际检查左侧标题和图标、长书稿菜单的独立滚动、旧自定义阶段下拉保留和切换保存、自动快照与立即备份、间隔改为30分钟后状态更新，以及退出重新打开后的记录保留。正式研究库未打开。发布文件及源码回读结果见本版验证说明和同步回执。
+
+未找到有效Developer ID证书，安装包使用本机临时签名，尚未Apple公证。
+</pre><h2>历史版本 KongScholar 3.2</h2><pre style="white-space:pre-wrap;font:inherit"># KongScholar 3.2.0
 
 2026-10-25 · 第29次构建 · macOS13+ · Apple芯片 / Intel通用版
 

@@ -6,7 +6,7 @@ function normalizeRevision(out){
  for(const t of out.tasks){for(const k of ['feedbackID','completionNote'])if(t[k]!==undefined&&typeof t[k]!=='string')throw Error('修订任务格式无效')}
  for(const p of out.projects)if(p.revisionTaskOrder!==undefined&&(!Array.isArray(p.revisionTaskOrder)||p.revisionTaskOrder.some(id=>typeof id!=='string')||new Set(p.revisionTaskOrder).size!==p.revisionTaskOrder.length))throw Error('修订顺序无效');
  const settings=out.settings,raw=revisionRawSettings||{};
- for(const [key,allowed,fallback]of [['backupIntervalMins',[15,30,60,120],60],['backupRetentionCount',[30,60,120],60]]){if(raw[key]!==undefined&&!allowed.includes(raw[key]))throw Error('自动备份设置无效');settings[key]=raw[key]??fallback}return out;
+ for(const [key,allowed,fallback]of [['backupIntervalMins',[15,30,60,120],15],['backupRetentionCount',[30,60,120],60]]){if(raw[key]!==undefined&&!allowed.includes(raw[key]))throw Error('自动备份设置无效');settings[key]=raw[key]??fallback}return out;
 }
 // The core normalizer rebuilds settings; capture only the explicit backup preferences during loading.
 let revisionRawSettings=null;

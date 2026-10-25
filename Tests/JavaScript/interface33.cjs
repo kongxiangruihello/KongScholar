@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),setup=require('./runtime30.js');
+const r=setup();assert.equal(r.run('normalize(data).settings.backupIntervalMins'),15);
+r.run("data.settings.backupIntervalMins=60;save()");const reopened=setup(r.disk());assert.equal(reopened.run('data.settings.backupIntervalMins'),60);
+assert.match(r.run("formField('stage','当前阶段',undefined,{stage:'TEST legacy <stage>'})"),/value="TEST legacy &lt;stage&gt;" selected/);
+assert.match(r.run("formField('stage','当前阶段',undefined,{stage:'初稿写作'})"),/<select name="stage">/);
+assert.match(r.run("backupStatusText33({error:'TEST disk full',latestAt:'2026-10-25T00:00:00Z'})"),/需处理/);
+assert.match(r.run("backupStatusText33({hasData:false})"),/保存第一条/);
+r.run("backupReadAt33=0;refreshBackup33(true)");assert.match(r.get('#sidebarBackup33').innerHTML,/状态暂不可读取/);
+const before=r.calls.filter(c=>c.action==='KONGSCHOLAR_SNAPSHOT').length;r.fail(true);r.run("$('#backupNow33').onclick()");assert.equal(r.calls.filter(c=>c.action==='KONGSCHOLAR_SNAPSHOT').length,before);r.fail(false);
+r.run("nativePrompt33=window.prompt;window.prompt=(a,v)=>a==='KONGSCHOLAR_SNAPSHOT'?'ok':a==='KONGSCHOLAR_BACKUP_STATUS33'?JSON.stringify({hasData:true,latestAt:'2026-10-25T00:00:00Z',error:''}):nativePrompt33(a,v);$('#backupNow33').onclick()");assert.match(r.get('#toast').textContent,/已保存并校验/);assert.match(r.get('#sidebarBackup33').innerHTML,/最近快照/);
+console.log('Passed 3.3: existing cadence and custom project stages survive reopening; backup failures remain explicit and failed saves prevent snapshot requests.');

@@ -198,7 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     @objc private func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "KongScholar", .applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.0", .version: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "4",
-            .credits: NSAttributedString(string: "何以为士：林乐知与晚清士大夫的重塑\n私人学术工作台 · 离线 Mac 版")
+            .credits: NSAttributedString(string: "何以为士：林乐知与晚清士大夫的重塑\n个人学术工作台 · 离线 Mac 版")
         ])
     }
     @objc private func showHelp() {
@@ -227,7 +227,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard isTrusted(frame) else { completionHandler(nil); return }
         if advancedPrompt(prompt, text: defaultText, completion: completionHandler) { return }
         if prompt == "KONGSCHOLAR_WRITE" {
-            do { try store.write(defaultText ?? ""); checkExternalBackup(); completionHandler("ok") }
+            do { try store.write(defaultText ?? ""); checkAutomaticBackup(); completionHandler("ok") }
             catch { completionHandler("error:" + error.localizedDescription) }
         } else if prompt == "KONGSCHOLAR_HEALTH" {
             do {
@@ -244,6 +244,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 }
                 completionHandler(jsonString(results))
             } catch { completionHandler(jsonString([error.localizedDescription])) }
+        } else if prompt == "KONGSCHOLAR_BACKUP_STATUS33" {
+            do {
+                let files = try store.backupFiles()
+                let latest = files.first
+                let at = latest.flatMap { try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
+                completionHandler(jsonString(["latestAt": at.map { ISO8601DateFormatter().string(from: $0) } ?? "", "automaticCount": files.filter { $0.lastPathComponent.contains("-auto-") }.count, "error": backupError, "path": store.backupURL.path, "hasData": FileManager.default.fileExists(atPath: store.dataURL.path)]))
+            } catch { completionHandler(jsonString(["error": error.localizedDescription])) }
         } else if prompt == "KONGSCHOLAR_BACKUPS" {
             do {
                 let files = try store.backupFiles().map { url -> [String: Any] in

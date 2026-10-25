@@ -99,10 +99,10 @@ public final class ScholarStore {
     public func backupPreferences() -> (interval: Int, retention: Int) {
         guard let text = try? read(), let bytes = text.data(using: .utf8),
               let root = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
-              let settings = root["settings"] as? [String: Any] else { return (60, 60) }
-        let interval = settings["backupIntervalMins"] as? Int ?? 60
+              let settings = root["settings"] as? [String: Any] else { return (15, 60) }
+        let interval = settings["backupIntervalMins"] as? Int ?? 15
         let retention = settings["backupRetentionCount"] as? Int ?? 60
-        return ([15, 30, 60, 120].contains(interval) ? interval : 60,
+        return ([15, 30, 60, 120].contains(interval) ? interval : 15,
                 [30, 60, 120].contains(retention) ? retention : 60)
     }
 
@@ -114,13 +114,13 @@ public final class ScholarStore {
     @discardableResult private func snapshotText(_ text:String,force:Bool,label:String,now:Date) throws -> URL? {
         let bytes=try Self.validate(text)
         let settings=((try? JSONSerialization.jsonObject(with:bytes)) as? [String:Any])?["settings"] as? [String:Any] ?? [:]
-        let interval=settings["backupIntervalMins"] as? Int ?? 60,retention=settings["backupRetentionCount"] as? Int ?? 60
+        let interval=settings["backupIntervalMins"] as? Int ?? 15,retention=settings["backupRetentionCount"] as? Int ?? 60
         try manager.createDirectory(at: backupURL, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let files = try backupFiles()
         if label == "auto", let latest = files.first, (try? Data(contentsOf: latest)) == bytes { return nil }
         if !force, let last = files.first,
            let date = try last.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
-           now.timeIntervalSince(date) < Double(([15,30,60,120].contains(interval) ? interval : 60) * 60) { return nil }
+           now.timeIntervalSince(date) < Double(([15,30,60,120].contains(interval) ? interval : 15) * 60) { return nil }
         let name = "snapshot-" + String(Int(now.timeIntervalSince1970)) + "-" + label + "-" + UUID().uuidString + ".json"
         let url = backupURL.appendingPathComponent(name)
         try bytes.write(to: url, options: .atomic)

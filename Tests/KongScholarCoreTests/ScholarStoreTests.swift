@@ -84,6 +84,23 @@ final class ScholarStoreTests: XCTestCase {
         XCTAssertEqual(store.backupPreferences().interval, 15)
         XCTAssertEqual(store.backupPreferences().retention, 30)
     }
+    func testDefaultFifteenMinuteBackupsAndExistingHourlyPreference() throws {
+        let store = try ScholarStore(directory: temp)
+        XCTAssertEqual(store.backupPreferences().interval, 15)
+        try store.write(record("TEST first"))
+        let at = Date(timeIntervalSince1970: 2_000_000)
+        let first = try XCTUnwrap(store.snapshotIfNeeded(force: true, now: at))
+        try Data(record("TEST changed").utf8).write(to: store.dataURL)
+        XCTAssertNil(try store.snapshotIfNeeded(now: at.addingTimeInterval(899)))
+        let next = try XCTUnwrap(store.snapshotIfNeeded(now: at.addingTimeInterval(901)))
+        XCTAssertEqual(try store.backupText(named: next.lastPathComponent), record("TEST changed"))
+        XCTAssertEqual(try store.backupText(named: first.lastPathComponent), record("TEST first"))
+        let hourly = record("TEST hourly").replacingOccurrences(of: "\"questions\":[]", with: "\"settings\":{\"backupIntervalMins\":60},\"questions\":[]")
+        try Data(hourly.utf8).write(to: store.dataURL)
+        XCTAssertEqual(store.backupPreferences().interval, 60)
+        XCTAssertNil(try store.snapshotIfNeeded(now: at.addingTimeInterval(1802)))
+        XCTAssertNotNil(try store.snapshotIfNeeded(now: at.addingTimeInterval(4502)))
+    }
     func testConfiguredRetentionPreservesManualSnapshot() throws {
         let store = try ScholarStore(directory: temp)
         let base = record("初稿").replacingOccurrences(of: "\"questions\":[]", with: "\"settings\":{\"backupRetentionCount\":30},\"questions\":[]")
