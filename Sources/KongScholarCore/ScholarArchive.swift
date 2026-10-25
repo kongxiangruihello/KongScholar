@@ -6,7 +6,7 @@ import CryptoKit
 public enum ScholarArchive {
     public static let indexLimit = 64 * 1024 * 1024
     private static let rootKeys = ["importHistory", "mergeHistory"]
-    private static let recordKeys: [String: [String]] = ["freezes": ["snapshot"], "deliveries": ["chapters", "feedback", "exportBlocks31"], "chapters": ["versions"], "questions": ["evolution"], "evidenceimages": ["imageData", "ocrHistory"], "collations": ["witnesses"], "pdfindexes": ["pages"], "sourceimpacts": ["before", "after"], "draftcomparisons": ["beforeText", "afterText"], "revisionrounds29": ["reference29"], "teachingchecks29": ["snapshot29"], "meetingplans29": ["agendaBasis29"], "indexentries31": ["reviewBasis31"], "replies32": ["snapshot32", "basis32", "history32"], "packetversions34": ["snapshot34", "basis34"], "meetingactions34": ["history34"], "continuations36": ["snapshot36", "basis36"], "cvdrafts36": ["cvSources36", "basis36"], "projects": ["stageHistory36"], "submissions": ["statusHistory36"], "academicdates36": ["icalHistory37"]]
+    private static let recordKeys: [String: [String]] = ["freezes": ["snapshot"], "deliveries": ["chapters", "feedback", "exportBlocks31"], "chapters": ["versions"], "questions": ["evolution"], "evidenceimages": ["imageData", "ocrHistory"], "collations": ["witnesses"], "pdfindexes": ["pages"], "sourceimpacts": ["before", "after"], "draftcomparisons": ["beforeText", "afterText"], "revisionrounds29": ["reference29"], "teachingchecks29": ["snapshot29"], "meetingplans29": ["agendaBasis29"], "indexentries31": ["reviewBasis31"], "replies32": ["snapshot32", "basis32", "history32"], "packetversions34": ["snapshot34", "basis34"], "meetingactions34": ["history34"], "continuations36": ["snapshot36", "basis36"], "cvdrafts36": ["cvSources36", "basis36"], "projects": ["stageHistory36"], "submissions": ["statusHistory36"], "academicdates36": ["icalHistory37"], "calendarmoves38": ["before38", "after38"], "calendarseries38": ["history38"], "reviews": ["reviewSources38"]]
     public static func digest(_ bytes: Data) -> String { SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined() }
     public static func encode(_ bytes: Data, directory: URL) throws -> Data {
         guard var root = try JSONSerialization.jsonObject(with: bytes) as? [String: Any], root["_archiveStorage"] == nil else { throw ScholarStoreError.invalidData }
@@ -49,7 +49,7 @@ public enum ScholarArchive {
         // Older app versions must enter protected recovery mode instead of dropping unknown collections.
         root["profile"] = ["_archiveIndexOnly": true]
         let reader = (root["meta"] as? [String: Any])?["minimumReader"] as? Int ?? 0
-        let storageVersion = reader >= 37 ? 13 : reader >= 36 ? 12 : reader >= 35 ? 11 : reader >= 34 ? 10 : reader >= 32 ? 9 : reader >= 31 ? 8 : reader >= 30 ? 7 : reader >= 29 ? 6 : reader >= 28 ? 5 : reader >= 27 ? 4 : reader >= 26 ? 3 : reader == 25 ? 2 : 1
+        let storageVersion = reader >= 38 ? 14 : reader >= 37 ? 13 : reader >= 36 ? 12 : reader >= 35 ? 11 : reader >= 34 ? 10 : reader >= 32 ? 9 : reader >= 31 ? 8 : reader >= 30 ? 7 : reader >= 29 ? 6 : reader >= 28 ? 5 : reader >= 27 ? 4 : reader >= 26 ? 3 : reader == 25 ? 2 : 1
         var storage: [String: Any] = ["version": storageVersion, "pointers": pointers, "profile": profile]
         root["_archiveStorage"] = storage
         storage["indexSHA256"] = digest(try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys]))
@@ -61,7 +61,7 @@ public enum ScholarArchive {
     public static func decode(_ bytes: Data, directory: URL) throws -> Data {
         guard var root = try JSONSerialization.jsonObject(with: bytes) as? [String: Any] else { throw ScholarStoreError.invalidData }
         guard let storage = root.removeValue(forKey: "_archiveStorage") else { return bytes }
-        guard let metadata = storage as? [String: Any], [1,2,3,4,5,6,7,8,9,10,11,12,13].contains(metadata["version"] as? Int ?? 0), let pointers = metadata["pointers"] as? [[String: Any]], pointers.count <= 100_000 else { throw ScholarStoreError.invalidData }
+        guard let metadata = storage as? [String: Any], [1,2,3,4,5,6,7,8,9,10,11,12,13,14].contains(metadata["version"] as? Int ?? 0), let pointers = metadata["pointers"] as? [[String: Any]], pointers.count <= 100_000 else { throw ScholarStoreError.invalidData }
         guard let expected = metadata["indexSHA256"] as? String else { throw ScholarStoreError.invalidData }
         var unsigned = metadata, check = root
         unsigned.removeValue(forKey: "indexSHA256"); check["_archiveStorage"] = unsigned

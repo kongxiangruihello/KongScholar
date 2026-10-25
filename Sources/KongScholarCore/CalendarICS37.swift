@@ -63,6 +63,71 @@ public enum CalendarICS37 {
         for i in 1...5 {if m.range(at:i).location != NSNotFound {guard let number=Double(n.substring(with:m.range(at:i))) else{throw Failure("日历时长无效")};seconds += number*units[i-1]}}
         guard seconds>0,seconds<=366*86400,seconds.truncatingRemainder(dividingBy:60)==0 else {throw Failure("日历时长须大于0、按分钟且不超过366天")};return seconds
     }
+    /// Expand a finite, explicitly supported rule into stable single-event identities.
+    /// Original rule groups are rejected together if any unsupported rule/exception is present.
+    private static func expandSeries38(_ master:[Property],exceptions:[[Property]],local:TimeZone) throws -> [[Property]] {
+        func one(_ key:String)throws->Property? {let a=master.filter{$0.name==key};guard a.count<=1 else{throw Failure(key+"重复")};return a.first}
+        guard let uidProperty=try one("UID"),let startProperty=try one("DTSTART"),let ruleProperty=try one("RRULE") else{throw Failure("重复系列须有UID、DTSTART和一条RRULE")}
+        guard !master.contains(where:{["RDATE","EXRULE","RECURRENCE-ID"].contains($0.name)}) else{throw Failure("此重复组合暂不支持，请先导出单次事件")}
+        let uid=try text(uidProperty.value),start=try parseDate(startProperty,local)
+        guard !uid.isEmpty,uid.count<=1024 else{throw Failure("重复系列UID无效")}
+        var rule=[String:String]();for part in ruleProperty.value.uppercased().split(separator:";") {let pair=part.split(separator:"=",maxSplits:1,omittingEmptySubsequences:false);guard pair.count==2,rule[String(pair[0])]==nil else{throw Failure("重复规则参数无效或重复")};rule[String(pair[0])]=String(pair[1])}
+        let allowed=Set(["FREQ","INTERVAL","COUNT","UNTIL","BYDAY","BYMONTHDAY","WKST"])
+        guard Set(rule.keys).isSubset(of:allowed),let freq=rule["FREQ"],["DAILY","WEEKLY","MONTHLY"].contains(freq),rule["WKST"]==nil||rule["WKST"]=="MO" else{throw Failure("仅支持有限DAILY/WEEKLY/MONTHLY及周一为周首的简单规则")}
+        guard let interval=Int(rule["INTERVAL"] ?? "1"),(1...52).contains(interval),!(rule["COUNT"] != nil && rule["UNTIL"] != nil),rule["COUNT"] != nil||rule["UNTIL"] != nil else{throw Failure("重复规则须明确COUNT或UNTIL，间隔1—52；无限规则暂不展开")}
+        let count:Int;if let raw=rule["COUNT"] {guard let n=Int(raw),(1...200).contains(n) else{throw Failure("每个重复系列最多200次")};count=n}else{count=200}
+        let zone=start.1 ? utc:try resolveZone(start.2),format=start.1 ? "yyyyMMdd":"yyyyMMdd'T'HHmmss",rawStart=formatter(format,zone).string(from:start.0)
+        var cal=Calendar(identifier:.gregorian);cal.timeZone=zone;cal.firstWeekday=2
+        var weekdays:Set<Int>=[cal.component(.weekday,from:start.0)]
+        if let byday=rule["BYDAY"] {guard freq=="WEEKLY" else{throw Failure("BYDAY目前仅支持每周的非序数星期列表")};let map=["SU":1,"MO":2,"TU":3,"WE":4,"TH":5,"FR":6,"SA":7],list=byday.split(separator:",").map(String.init);guard !list.isEmpty,list.count<=7,list.allSatisfy({map[$0] != nil}),Set(list).count==list.count else{throw Failure("BYDAY含不支持的星期规则")};weekdays=Set(list.compactMap{map[$0]});guard weekdays.contains(cal.component(.weekday,from:start.0)) else{throw Failure("DTSTART与每周规则不一致，未猜测展开")}}
+        if let monthDay=rule["BYMONTHDAY"] {guard freq=="MONTHLY",Int(monthDay)==cal.component(.day,from:start.0) else{throw Failure("每月仅支持与首次日期相同的正数日号")}}
+        let until:Date?;if let raw=rule["UNTIL"] {let isUTC=raw.hasSuffix("Z");if start.1 {guard raw.count==8 else{throw Failure("全天UNTIL须为DATE")}}else{guard raw.count>=15,(!startProperty.value.hasSuffix("Z")&&startProperty.params["TZID"]==nil)||isUTC else{throw Failure("带时区系列的UNTIL须为UTC")}}
+            let p=Property(name:"UNTIL",params:start.1 ? ["VALUE":"DATE"]:isUTC ? [:]:startProperty.params,value:raw),u=try parseDate(p,local);guard u.1==start.1,u.0>=start.0 else{throw Failure("UNTIL须不早于开始且类型一致")};until=u.0
+        }else{until=nil}
+        let horizon=cal.date(byAdding:.year,value:5,to:start.0)!
+        if let until,until>horizon {throw Failure("重复系列最多覆盖5年")}
+        let endProperty=try one("DTEND"),length=try one("DURATION");guard endProperty==nil||length==nil else{throw Failure("DTEND与DURATION不能同时出现")}
+        let seconds:TimeInterval
+        if let endProperty {let end=try parseDate(endProperty,local);guard end.1==start.1,end.0>start.0 else{throw Failure("系列起止日期无效")};seconds=end.0.timeIntervalSince(start.0)}
+        else if let length {if !start.1 && (length.value.contains("D")||length.value.contains("W")){throw Failure("带时间系列的天/周时长暂不展开，请改为结束时间")};seconds=try duration(length.value)}
+        else if start.1 {seconds=86400}else{throw Failure("重复事件缺少结束时间或时长")}
+        guard seconds>0,seconds<=366*86400 else{throw Failure("系列单次时长须在366天以内")}
+        var excluded=Set<Date>();for p in master.filter({$0.name=="EXDATE"}) {for value in p.value.split(separator:",",omittingEmptySubsequences:false){let d=try parseDate(Property(name:"EXDATE",params:p.params,value:String(value)),local);guard d.1==start.1 else{throw Failure("例外日期类型不一致")};excluded.insert(d.0)}}
+        var overrides=[Date:[Property]]();for x in exceptions {let ids=x.filter{$0.name=="RECURRENCE-ID"};guard ids.count==1,ids[0].params["RANGE"]==nil,!x.contains(where:{["RRULE","RDATE","EXRULE","EXDATE"].contains($0.name)}) else{throw Failure("不支持此例外事件规则或RANGE")};let d=try parseDate(ids[0],local);guard d.1==start.1,overrides[d.0]==nil else{throw Failure("例外日期类型不一致或重复")};overrides[d.0]=x}
+        var starts=[Date]();let initialWeekday=(cal.component(.weekday,from:start.0)+5)%7,initialDay=cal.component(.day,from:start.0)
+        for offset in 0...1900 {
+            let candidate:Date
+            if freq=="MONTHLY" {let first=cal.date(from:cal.dateComponents([.year,.month],from:start.0))!,month=cal.date(byAdding:.month,value:offset*interval,to:first)!,ym=cal.dateComponents([.year,.month],from:month);var c=cal.dateComponents([.hour,.minute,.second],from:start.0);c.year=ym.year;c.month=ym.month;c.day=initialDay;guard let d=cal.date(from:c),cal.component(.day,from:d)==initialDay else{continue};candidate=d}
+            else {guard let d=cal.date(byAdding:.day,value:offset,to:start.0) else{break};candidate=d;if freq=="DAILY"&&offset%interval != 0 {continue};if freq=="WEEKLY"&&((offset+initialWeekday)/7%interval != 0 || !weekdays.contains(cal.component(.weekday,from:d))){continue}}
+            if candidate>horizon {break};if let until,candidate>until{break}
+            if !start.1&&formatter("HHmmss",zone).string(from:candidate) != String(rawStart.suffix(6)){continue}
+            starts.append(candidate);if starts.count>=count {break}
+        }
+        guard !starts.isEmpty,rule["COUNT"]==nil||starts.count==count else{throw Failure("系列无法在5年与200次的支持范围内完整展开")}
+        if rule["COUNT"]==nil,starts.count==200,let last=starts.last,let until,last<until {throw Failure("截至日期内可能超过200次，请拆分规则")}
+        guard overrides.keys.allSatisfy({starts.contains($0)}),excluded.allSatisfy({starts.contains($0)}) else{throw Failure("例外日期不在本次支持范围内，未部分导入系列")}
+        var result=[[Property]]()
+        for original in starts {
+            if excluded.contains(original){continue}
+            let identifier=formatter(format,zone).string(from:original),stableUID="ks38-"+ScholarArchive.digest(Data(uid.utf8))+"-"+identifier+"@kongscholar.local",seriesID="ics38-"+ScholarArchive.digest(Data(uid.utf8))
+            var props=(overrides[original] ?? master).filter{!["RRULE","RECURRENCE-ID","EXDATE","RDATE","EXRULE","UID","X-KONGSCHOLAR-SERIES38","X-KONGSCHOLAR-OCCURRENCE38"].contains($0.name)}
+            if overrides[original]==nil {props.removeAll{["DTSTART","DTEND","DURATION"].contains($0.name)};let params=start.1 ? ["VALUE":"DATE"]:[:],formatOut=start.1 ? "yyyyMMdd":"yyyyMMdd'T'HHmmss'Z'",outputZone=start.1 ? zone:utc;props.append(Property(name:"DTSTART",params:params,value:formatter(formatOut,outputZone).string(from:original)));props.append(Property(name:"DTEND",params:params,value:formatter(formatOut,outputZone).string(from:original.addingTimeInterval(seconds))))}
+            else if !props.contains(where:{$0.name=="DTSTART"}),props.contains(where:{$0.name=="STATUS"&&$0.value.uppercased()=="CANCELLED"}) {props.append(Property(name:"DTSTART",params:start.1 ? ["VALUE":"DATE"]:[:],value:formatter(start.1 ? "yyyyMMdd":"yyyyMMdd'T'HHmmss'Z'",start.1 ? zone:utc).string(from:original)));props.append(Property(name:"DTEND",params:start.1 ? ["VALUE":"DATE"]:[:],value:formatter(start.1 ? "yyyyMMdd":"yyyyMMdd'T'HHmmss'Z'",start.1 ? zone:utc).string(from:original.addingTimeInterval(seconds))))}
+            props.append(Property(name:"UID",params:[:],value:stableUID));props.append(Property(name:"X-KONGSCHOLAR-SERIES38",params:[:],value:seriesID));props.append(Property(name:"X-KONGSCHOLAR-OCCURRENCE38",params:[:],value:formatter("yyyy-MM-dd",zone).string(from:original)));result.append(props)
+        }
+        return result
+    }
+    private static func expandRecurrences38(_ originals:[[Property]],local:TimeZone) -> ([[Property]],[[String:String]]) {
+        let groups=Dictionary(grouping:originals,by:{$0.first(where:{$0.name=="UID"})?.value ?? ""});var output=[[Property]](),skipped=[[String:String]](),handled=Set<String>()
+        for props in originals {
+            let uid=props.first(where:{$0.name=="UID"})?.value ?? "",hasRule=props.contains{$0.name=="RRULE"},hasException=props.contains{$0.name=="RECURRENCE-ID"},group=groups[uid] ?? []
+            if !hasRule && !hasException {output.append(props);continue}
+            if handled.contains(uid){continue};handled.insert(uid)
+            do {let masters=group.filter{$0.contains(where:{$0.name=="RRULE"})},exceptions=group.filter{$0.contains(where:{$0.name=="RECURRENCE-ID"})};guard masters.count==1,group.count==masters.count+exceptions.count else{throw Failure("重复系列主事件缺失、重复或含无法匹配的事件")};output += try expandSeries38(masters[0],exceptions:exceptions,local:local)}
+            catch {skipped.append(["title":(try? text(props.first(where:{$0.name=="SUMMARY"})?.value ?? "重复系列")) ?? "重复系列","reason":error.localizedDescription])}
+        }
+        return(output,skipped)
+    }
     public static func inspect(_ bytes:Data,localTimeZone:TimeZone = .current,maximumEvents:Int = 500) throws -> [String:Any] {
         guard bytes.count<=limit,let raw=String(data:bytes,encoding:.utf8),!raw.contains("\0") else {throw Failure("请选择2MB以内的UTF-8 .ics日历文件")}
         let clean=raw.replacingOccurrences(of:"\u{FEFF}",with:"").replacingOccurrences(of:"\r\n",with:"\n").replacingOccurrences(of:"\r",with:"\n")
@@ -79,8 +144,9 @@ public enum CalendarICS37 {
         }
         guard stack.isEmpty,version=="2.0" else {throw Failure("仅支持iCalendar 2.0，组件须完整结束")}
         guard ["","PUBLISH"].contains(method) else {throw Failure("此文件是会议邀请或取消消息，请从日历导出普通.ics文件；本应用不处理参会回应")}
-        var output=[[String:Any]](),skipped=[[String:String]](),seen=Set<String>()
-        for (index,props) in events.enumerated(){
+        let expanded=expandRecurrences38(events,local:localTimeZone);guard expanded.0.count<=maximumEvents else{throw Failure("展开后事件超过本次上限，请拆分日历文件")}
+        var output=[[String:Any]](),skipped=expanded.1,seen=Set<String>()
+        for (index,props) in expanded.0.enumerated(){
             let title=(try? text(props.first(where:{$0.name=="SUMMARY"})?.value ?? "")) ?? "事件\(index+1)"
             do {
                 func one(_ key:String,required:Bool=false)throws->Property? {let a=props.filter{$0.name==key};guard a.count<=1 else{throw Failure(key+"重复，未猜测使用哪项")};if required&&a.isEmpty{throw Failure("缺少"+key)};return a.first}
@@ -106,6 +172,7 @@ public enum CalendarICS37 {
                 if startDay != endDay {notes.append("跨日事件保留完整起止日期")}
                 var event:[String:Any]=["uid":uid,"sequence":sequence,"stamp":stamp,"title":summary,"body":description,"location37":location,"date36":startDay,"endDate37":endDay,"startTime36":start.1 ? "":formatter("HH:mm",zone).string(from:start.0),"endTime36":start.1 ? "":formatter("HH:mm",zone).string(from:end),"timeZone37":start.1 ? "":localTimeZone.identifier,"sourceTimeZone":start.2,"dateState36":status=="CANCELLED" ? "已取消":["已完成","已发表","已出版","录用","退稿","撤回"].contains(state) ? "已完成":"待处理","dateKind36":"研究安排","notes":notes]
                 if let kind=try one("X-KONGSCHOLAR-KIND"),let v=try? text(kind.value),["交稿","投稿","返修","学术报告","研究安排","其他"].contains(v){event["dateKind36"]=v}
+                if let series=try one("X-KONGSCHOLAR-SERIES38"),let occurrence=try one("X-KONGSCHOLAR-OCCURRENCE38") {event["seriesID38"]=try text(series.value);event["occurrence38"]=try text(occurrence.value)}
                 output.append(event)
             }catch {skipped.append(["title":String(title.prefix(200)),"reason":error.localizedDescription])}
         }

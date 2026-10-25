@@ -13,7 +13,7 @@ function configureResearchSchema(types,schema){
  schema.draftcomparisons=[['title','两稿对照名称'],['supervisionID','所属指导论文','ref24:supervisions'],['body','本轮指导判断与下次讨论','area']];
 }
 function normalizeResearch25(out){
- if(out.meta.minimumReader!==undefined&&![25,26,27,28,29,30,31,32,34,35,36,37].includes(out.meta.minimumReader))throw Error('资料需要更新版本的KongScholar读取');
+ if(out.meta.minimumReader!==undefined&&![25,26,27,28,29,30,31,32,34,35,36,37,38].includes(out.meta.minimumReader))throw Error('资料需要更新版本的KongScholar读取');
  for(const t of out.tasks)if(t.dependsOnIDs!==undefined&&(!Array.isArray(t.dependsOnIDs)||t.dependsOnIDs.length>1000||t.dependsOnIDs.some(x=>typeof x!=='string')||new Set(t.dependsOnIDs).size!==t.dependsOnIDs.length))throw Error('任务前置关系无效');
  validateTaskGraph25(out.tasks);
  for(const r of out.paragraphroles)if(r.role25&&!advancedEnums.role25.includes(r.role25))throw Error('段落作用无效');
