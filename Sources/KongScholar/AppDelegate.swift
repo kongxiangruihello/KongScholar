@@ -202,7 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         ])
     }
     @objc private func showHelp() {
-        if let help = Bundle.main.resourceURL?.appendingPathComponent("使用说明.html") { NSWorkspace.shared.open(help) }
+        showGuide37()
     }
 
     private func isTrusted(_ frame: WKFrameInfo) -> Bool {
