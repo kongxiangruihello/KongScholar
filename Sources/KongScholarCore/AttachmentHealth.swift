@@ -19,7 +19,7 @@ public enum AttachmentHealth {
         let info=try url.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey]);guard info.isRegularFile==true,info.isSymbolicLink != true,(info.fileSize ?? Int.max)<=512*1024*1024 else{throw ScholarStoreError.tooLarge}
         let bytes:Data
         if link.kind=="folio" || !(link.documentID ?? "").isEmpty {
-            guard try FolioOrigin.projectID(at:url)==link.documentID else{throw ScholarStoreError.invalidData}
+            guard try FolioOrigin.projectID(at:url).lowercased()==link.documentID?.lowercased() else{throw ScholarStoreError.invalidData}
             bytes=try EvidenceImage.pdfData(at:url,expectedID:link.documentID!)
         }else{guard link.kind != "pdf" || url.pathExtension.lowercased()=="pdf" else{throw ScholarStoreError.invalidData};bytes=try Data(contentsOf:url)}
         let digest=ScholarArchive.digest(bytes)

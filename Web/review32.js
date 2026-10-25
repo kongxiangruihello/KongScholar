@@ -1,5 +1,5 @@
 'use strict';
-const saveBefore32=save;save=function(){const old=data.meta.minimumReader;try{normalizeReview32(data);data.meta.minimumReader=32;const ok=saveBefore32();if(!ok)data.meta.minimumReader=old;return ok}catch(e){data.meta.minimumReader=old;storageAvailable=false;toast(e.message);return false}};
+const saveBefore32=save;save=function(){const old=data.meta.minimumReader;try{normalizeReview32(data);data.meta.minimumReader=Math.max(32,data.meta.minimumReader||0);const ok=saveBefore32();if(!ok)data.meta.minimumReader=old;return ok}catch(e){data.meta.minimumReader=old;storageAvailable=false;toast(e.message);return false}};
 const captureBefore32=captureFormDraft26;captureFormDraft26=function(){if(formJournal26&&formJournalDirty26&&$('dialog').open&&(data.meta.minimumReader||0)<32&&!save())return false;return captureBefore32()};
 const recordBefore32=recordFromForm;recordFromForm=function(type,form){const v=recordBefore32(type,form),old=editing?.id&&find(type,editing.id);if(Object.hasOwn(reviewTypes32,type)&&v.projectIDs?.length!==1)throw Error('请选择一个具体项目');
  if(type==='replies32'){

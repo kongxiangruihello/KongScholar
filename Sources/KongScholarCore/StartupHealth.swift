@@ -8,7 +8,7 @@ public enum StartupHealth {
         check("资料索引"){
             guard FileManager.default.fileExists(atPath:store.dataURL.path) else{return"尚无资料库"}
             let bytes=try Data(contentsOf:store.dataURL);guard bytes.count<=ScholarStore.limit,var root=try JSONSerialization.jsonObject(with:bytes) as? [String:Any] else{throw ScholarStoreError.invalidData}
-            if var storage=root["_archiveStorage"] as? [String:Any]{guard [1,2,3,4,5,6,7,8,9].contains(storage["version"] as? Int ?? 0),let expected=storage.removeValue(forKey:"indexSHA256") as? String else{throw ScholarStoreError.invalidData};root["_archiveStorage"]=storage;guard ScholarArchive.digest(try JSONSerialization.data(withJSONObject:root,options:[.sortedKeys]))==expected else{throw ScholarStoreError.invalidData}}
+            if var storage=root["_archiveStorage"] as? [String:Any]{guard [1,2,3,4,5,6,7,8,9,10].contains(storage["version"] as? Int ?? 0),let expected=storage.removeValue(forKey:"indexSHA256") as? String else{throw ScholarStoreError.invalidData};root["_archiveStorage"]=storage;guard ScholarArchive.digest(try JSONSerialization.data(withJSONObject:root,options:[.sortedKeys]))==expected else{throw ScholarStoreError.invalidData}}
             else{guard let text=String(data:bytes,encoding:.utf8) else{throw ScholarStoreError.invalidData};_ = try ScholarStore.validate(text)};return"索引结构及其校验值通过"
         }
         check("历史归档与完整资料"){

@@ -3,6 +3,7 @@ import KongScholarCore
 
 extension AppDelegate {
     func personalPrompt(_ prompt:String,text:String?,completion:@escaping(String?)->Void)->Bool {
+        if deliveryPrompt34(prompt,text:text,completion:completion){return true}
         if reviewPrompt32(prompt,text:text,completion:completion){return true}
         if studioPrompt31(prompt,text:text,completion:completion){return true}
         if continuityPrompt30(prompt,text:text,completion:completion){return true}
