@@ -440,7 +440,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard let bytes = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]) else { return nil }
         return String(data: bytes, encoding: .utf8)?.replacingOccurrences(of: "\u{2028}", with: "\\u2028").replacingOccurrences(of: "\u{2029}", with: "\\u2029")
     }
-    private func targetFolioURL() -> URL {
+    func targetFolioURL() -> URL {
         if let peer = Bundle.main.object(forInfoDictionaryKey: "KongFolioPeerBundleID") as? String,
            let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == peer })?.bundleURL ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: peer) { return app }
         if let bytes = UserDefaults.standard.data(forKey: "KongScholar.FolioApplicationBookmark") {

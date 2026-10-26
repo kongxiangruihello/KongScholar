@@ -170,7 +170,7 @@ public enum CalendarICS37 {
                 if props.contains(where:{["ATTENDEE","ORGANIZER","ATTACH","URL"].contains($0.name)}){notes.append("参会人、附件和链接未导入或打开")}
                 let zone=start.1 ? utc:localTimeZone,startDay=day(start.0,zone),endDay=day(start.1 ? end.addingTimeInterval(-86400):end,zone)
                 if startDay != endDay {notes.append("跨日事件保留完整起止日期")}
-                var event:[String:Any]=["uid":uid,"sequence":sequence,"stamp":stamp,"title":summary,"body":description,"location37":location,"date36":startDay,"endDate37":endDay,"startTime36":start.1 ? "":formatter("HH:mm",zone).string(from:start.0),"endTime36":start.1 ? "":formatter("HH:mm",zone).string(from:end),"timeZone37":start.1 ? "":localTimeZone.identifier,"sourceTimeZone":start.2,"dateState36":status=="CANCELLED" ? "已取消":["已完成","已发表","已出版","录用","退稿","撤回"].contains(state) ? "已完成":"待处理","dateKind36":"研究安排","notes":notes]
+                var event:[String:Any]=["uid":uid,"sequence":sequence,"stamp":stamp,"title":summary,"body":description,"location37":location,"date36":startDay,"endDate37":endDay,"startTime36":start.1 ? "":formatter("HH:mm",zone).string(from:start.0),"endTime36":start.1 ? "":formatter("HH:mm",zone).string(from:end),"timeZone37":start.1 ? "":localTimeZone.identifier,"startInstant39":ISO8601DateFormatter().string(from:start.0),"endInstant39":ISO8601DateFormatter().string(from:end),"sourceTimeZone":start.2,"dateState36":status=="CANCELLED" ? "已取消":["已完成","已发表","已出版","录用","退稿","撤回"].contains(state) ? "已完成":"待处理","dateKind36":"研究安排","notes":notes]
                 if let kind=try one("X-KONGSCHOLAR-KIND"),let v=try? text(kind.value),["交稿","投稿","返修","学术报告","研究安排","其他"].contains(v){event["dateKind36"]=v}
                 if let series=try one("X-KONGSCHOLAR-SERIES38"),let occurrence=try one("X-KONGSCHOLAR-OCCURRENCE38") {event["seriesID38"]=try text(series.value);event["occurrence38"]=try text(occurrence.value)}
                 output.append(event)
@@ -186,7 +186,18 @@ public enum CalendarICS37 {
             let endText=(e["endDate37"] as? String).flatMap{$0.isEmpty ? nil:$0} ?? dateText,start=e["startTime36"] as? String ?? "",end=e["endTime36"] as? String ?? "",allday=start.isEmpty&&end.isEmpty
             lines += ["BEGIN:VEVENT","UID:"+(try escape(uid)),"DTSTAMP:"+formatter("yyyyMMdd'T'HHmmss'Z'",utc).string(from:now)]
             if allday {let a=try date(dateText,"yyyy-MM-dd",utc),b=try date(endText,"yyyy-MM-dd",utc);guard b>=a,b.timeIntervalSince(a)<366*86400 else{throw Failure("全天日期范围无效或超过366天")};lines += ["DTSTART;VALUE=DATE:"+formatter("yyyyMMdd",utc).string(from:a),"DTEND;VALUE=DATE:"+formatter("yyyyMMdd",utc).string(from:b.addingTimeInterval(86400))]}
-            else {let zoneText=e["timeZone37"] as? String ?? "",zone=zoneText.isEmpty ? localTimeZone:try resolveZone(zoneText),a=try date(dateText+" "+start,"yyyy-MM-dd HH:mm",zone),b=try date(endText+" "+end,"yyyy-MM-dd HH:mm",zone);guard b>a,b.timeIntervalSince(a)<=366*86400 else{throw Failure("日程起止时间无效或超过366天")};lines += ["DTSTART:"+formatter("yyyyMMdd'T'HHmmss'Z'",utc).string(from:a),"DTEND:"+formatter("yyyyMMdd'T'HHmmss'Z'",utc).string(from:b)]}
+            else {
+                let zoneText=e["timeZone37"] as? String ?? "",zone=zoneText.isEmpty ? localTimeZone:try resolveZone(zoneText)
+                let a:Date,b:Date
+                if e["startInstant39"] != nil || e["endInstant39"] != nil {
+                    let f=ISO8601DateFormatter();f.formatOptions=[.withInternetDateTime,.withFractionalSeconds]
+                    func instant(_ key:String)throws->Date {guard let value=e[key] as? String,let result=f.date(from:value) ?? ISO8601DateFormatter().date(from:value) else {throw Failure("明确时刻格式无效")};return result}
+                    a=try instant("startInstant39");b=try instant("endInstant39")
+                    guard formatter("yyyy-MM-dd HH:mm",zone).string(from:a)==dateText+" "+start,formatter("yyyy-MM-dd HH:mm",zone).string(from:b)==endText+" "+end else {throw Failure("明确时刻与日程日期或时区不一致")}
+                } else {a=try date(dateText+" "+start,"yyyy-MM-dd HH:mm",zone);b=try date(endText+" "+end,"yyyy-MM-dd HH:mm",zone)}
+                guard b>a,b.timeIntervalSince(a)<=366*86400 else {throw Failure("日程起止时间无效或超过366天")}
+                lines += ["DTSTART:"+formatter("yyyyMMdd'T'HHmmss'Z'",utc).string(from:a),"DTEND:"+formatter("yyyyMMdd'T'HHmmss'Z'",utc).string(from:b)]
+            }
             lines += ["SUMMARY:"+(try escape(title)),"STATUS:"+((e["dateState36"] as? String)=="已取消" ? "CANCELLED":"CONFIRMED")]
             for (key,property) in [("body","DESCRIPTION"),("location37","LOCATION"),("dateState36","X-KONGSCHOLAR-STATE"),("dateKind36","X-KONGSCHOLAR-KIND")] {if let value=e[key] as? String,!value.isEmpty {guard value.count<=50000 else{throw Failure("日程说明过长")};lines.append(property+":"+(try escape(value)))}}
             if let sequence=e["sequence"] as? Int,sequence>=0,sequence<=Int(Int32.max){lines.append("SEQUENCE:\(sequence)")}
